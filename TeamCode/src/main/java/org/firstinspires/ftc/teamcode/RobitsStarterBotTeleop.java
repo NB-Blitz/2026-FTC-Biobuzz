@@ -95,10 +95,9 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
        private Motor backRightDrive;
        private DcMotor motorCatapult;
 
-       private CRServo rollerI;
-       private CRServo rollerF;
+       private CRServo rollers;
        
-       private Servo stick;
+       //private Servo stick;
 
        private MecanumDrive drive;
 
@@ -146,17 +145,16 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
         backLeftDrive = new Motor(hardwareMap, "back_left_drive");
         backRightDrive = new Motor(hardwareMap, "back_right_drive");
         motorCatapult = hardwareMap.dcMotor.get("catapult");
-        rollerI = hardwareMap.crservo.get("rollerI");
-        rollerF = hardwareMap.crservo.get("rollerF");
-        stick = hardwareMap.servo.get("stick");
+        rollers = hardwareMap.crservo.get("rollers");
+        //stick = hardwareMap.servo.get("stick");
 
         /* Most robots need the motor on one side to be reversed to drive forward
         * If the robot is driving opposite directions than expected change
         * "REVERSE" to "FORWARD" or vice-versa. This also applies to the catapult and rollers.
         */
         frontLeftDrive.setInverted(false); //TODO: check if this is correct or flipped
-        frontRightDrive.setInverted(true);
-        backLeftDrive.setInverted(false);
+        frontRightDrive.setInverted(false);
+        backLeftDrive.setInverted(true);
         backRightDrive.setInverted(true);
 
         frontLeftDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
@@ -167,10 +165,9 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
         drive = new MecanumDrive(frontLeftDrive, frontRightDrive, backLeftDrive, backRightDrive);
 
         motorCatapult.setDirection(DcMotorSimple.Direction.REVERSE);  
-        rollerI.setDirection(DcMotorSimple.Direction.REVERSE);  
-        rollerF.setDirection(DcMotorSimple.Direction.FORWARD);  
+        rollers.setDirection(DcMotorSimple.Direction.REVERSE);  
         
-        stick.setPosition(STICKIN); // Defaults the stick flower mechanism to in. 
+        //stick.setPosition(STICKIN); // Defaults the stick flower mechanism to in. 
 
         imu = hardwareMap.get(IMU.class, "imu");
         myIMUparameters = new IMU.Parameters(
@@ -204,21 +201,18 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
             
             // Flower Stick control
             if (gamepad1.a) {
-                stick.setPosition(STICKIN);
+                //stick.setPosition(STICKIN);
             } else if (gamepad1.x) {
-                stick.setPosition(STICKOUT);
+                //stick.setPosition(STICKOUT);
             }
             
             //Intake control
             if (gamepad1.left_bumper) {
-                rollerI.setPower(in);
-                rollerF.setPower(in);
+                rollers.setPower(in);
             }else if (gamepad1.right_bumper) {
-                rollerI.setPower(out);
-                rollerF.setPower(out);
+                rollers.setPower(out);
             } else {
-                rollerI.setPower(0);
-                rollerF.setPower(0);
+                rollers.setPower(0);
             }
             
             //Launch control
@@ -238,7 +232,7 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
                 telemetry.addData("Catapult Status","Off");
             }
             
-            telemetry.addData("Stick Position", stick.getPosition());
+            //telemetry.addData("Stick Position", stick.getPosition());
             telemetry.update();
         }
     }

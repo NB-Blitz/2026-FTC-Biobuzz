@@ -78,12 +78,15 @@ public class RobitsStarterBotAuto extends LinearOpMode {
 
     // Declare OpMode members.
        private ElapsedTime runtime = new ElapsedTime();
-       private DcMotor leftDrive;
-       private DcMotor rightDrive;
+       private Motor frontLeftDrive;
+       private Motor frontRightDrive;
+       private Motor backLeftDrive;
+       private Motor backRightDrive;
        private DcMotor motorCatapult;
+
+       private MecanumDrive drive;
        
-       private CRServo rollerI;
-       private CRServo rollerF;
+       private CRServo rollers;
        
        private Servo stick;
 
@@ -114,28 +117,38 @@ public class RobitsStarterBotAuto extends LinearOpMode {
         * to 'get' must correspond to the names assigned during the robot configuration
         * step (using the FTC Robot Controller app on the phone).
         */
-        leftDrive = hardwareMap.dcMotor.get("left_drive");
-        rightDrive = hardwareMap.dcMotor.get("right_drive");
+        frontLeftDrive = new Motor(hardwareMap, "front_left_drive"); //TODO: get the IDs for these
+        frontRightDrive = new Motor(hardwareMap, "front_right_drive");
+        backLeftDrive = new Motor(hardwareMap, "back_left_drive");
+        backRightDrive = new Motor(hardwareMap, "back_right_drive");
+
         motorCatapult = hardwareMap.dcMotor.get("catapult");
-        rollerI = hardwareMap.crservo.get("rollerI");
-        rollerF = hardwareMap.crservo.get("rollerF");
+        rollers = hardwareMap.crservo.get("rollers");
         stick = hardwareMap.servo.get("stick");
 
         /* Most robots need the motor on one side to be reversed to drive forward
         * If the robot is driving opposite directions than expected change
         * "REVERSE" to "FORWARD" or vice-versa. This also applies to the catapult.
         */ 
-        leftDrive.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightDrive.setDirection(DcMotorSimple.Direction.FORWARD);
-        motorCatapult.setDirection(DcMotorSimple.Direction.REVERSE);  
-        rollerI.setDirection(DcMotorSimple.Direction.REVERSE);  
-        rollerF.setDirection(DcMotorSimple.Direction.FORWARD);
-        
-        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        frontLeftDrive.setInverted(false); //TODO: check if this is correct or flipped
+        frontRightDrive.setInverted(false);
+        backLeftDrive.setInverted(true);
+        backRightDrive.setInverted(true);
 
-        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontLeftDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        frontRightDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        backLeftDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        backRightDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        
+        frontLeftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        frontRightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backLeftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backRightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         
         /*
         * The code below creates a delay for the start of Auto. This can be useful
@@ -174,8 +187,10 @@ public class RobitsStarterBotAuto extends LinearOpMode {
 
         // Show the elapsed game time and wheel information
         telemetry.addData("Status", "Run Time: " + runtime.toString());
-        telemetry.addData("Left Encoder", leftDrive.getCurrentPosition());
-        telemetry.addData("Right Encoder", rightDrive.getCurrentPosition());
+        telemetry.addData("FrontLeft Encoder", frontLeftDrive.getCurrentPosition());
+        telemetry.addData("FrontRight Encoder", frontRightDrive.getCurrentPosition());
+        telemetry.addData("BackLeft Encoder", backLeftDrive.getCurrentPosition());
+        telemetry.addData("BackRight Encoder", backRightDrive.getCurrentPosition());
         telemetry.update();
         break;
         }
@@ -187,9 +202,14 @@ public class RobitsStarterBotAuto extends LinearOpMode {
         int newRightTarget;
 
         if (opModeIsActive()) {
-            newLeftTarget = leftDrive.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
-            newRightTarget = rightDrive.getCurrentPosition() + (int) (rightInches * COUNTS_PER_INCH);
-            leftDrive.setTargetPosition(newLeftTarget);
+            newFrontLeftTarget = leftDrive.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
+            newFrontRightTarget = leftDrive.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
+            newBackLeftTarget = leftDrive.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
+            newBackRightTarget = leftDrive.getCurrentPosition() + (int) (leftInches * COUNTS_PER_INCH);
+            frontLeftDrive.setTargetPosition(newFrontLeftTarget);
+            frontRightTarget.setTargetPosition(newFrontRightTarget);
+            backLeftDrive.setTargetPosition(newBackLeftTarget);
+            backRighttDrive.setTargetPosition(newBackRightTarget);
             rightDrive.setTargetPosition(newRightTarget);
 
             leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
