@@ -32,13 +32,21 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.arcrobotics.ftclib.drivebase.MecanumDrive;
+import com.arcrobotics.ftclib.hardware.motors.Motor;
+import com.qualcomm.robotcore.util.Range;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 /*
  * This program provides a base-level code for the 2026-2027 Robits StarterBot for the BIOBUZZ challenge.
@@ -81,17 +89,24 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
 
        // Declare OpMode members.
        private ElapsedTime runtime = new ElapsedTime();
-       private DcMotor leftDrive;
-       private DcMotor rightDrive;
+       private Motor frontLeftDrive;
+       private Motor frontRightDrive;
+       private Motor backLeftDrive;
+       private Motor backRightDrive;
        private DcMotor motorCatapult;
-       
+
        private CRServo rollerI;
        private CRServo rollerF;
        
        private Servo stick;
-       
-       double leftPower;
-       double rightPower;
+
+       private MecanumDrive drive;
+
+       IMU imu;
+
+       IMU.Parameters myIMUparameters;
+
+       YawPitchRollAngles robotOrientation;
        
        /*
        * These values control the speed of the intake rollers.
@@ -103,12 +118,6 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
        /*
        *The following sets up the three styles of drive type
        */
-       private enum DriveStyle {
-           SPLIT_ARCADE,
-           ARCADE,
-           TANK
-       }
-       private DriveStyle drive = DriveStyle.TANK;//Select drive mode
 
        /*
        * These constants control the catapult's fire speed.
@@ -132,8 +141,10 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
         * to 'get' must correspond to the names assigned during the robot configuration
         * step (using the FTC Robot Controller app).
         */
-        leftDrive = hardwareMap.dcMotor.get("left_drive");
-        rightDrive = hardwareMap.dcMotor.get("right_drive");
+        frontLeftDrive = new Motor(hardwareMap, "front_left_drive"); //TODO: get the IDs for these
+        frontRightDrive = new Motor(hardwareMap, "front_right_drive");
+        backLeftDrive = new Motor(hardwareMap, "back_left_drive");
+        backRightDrive = new Motor(hardwareMap, "back_right_drive");
         motorCatapult = hardwareMap.dcMotor.get("catapult");
         rollerI = hardwareMap.crservo.get("rollerI");
         rollerF = hardwareMap.crservo.get("rollerF");
@@ -142,15 +153,34 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
         /* Most robots need the motor on one side to be reversed to drive forward
         * If the robot is driving opposite directions than expected change
         * "REVERSE" to "FORWARD" or vice-versa. This also applies to the catapult and rollers.
-        */ 
-        leftDrive.setDirection(DcMotorSimple.Direction.FORWARD);
-        rightDrive.setDirection(DcMotorSimple.Direction.REVERSE);
+        */
+        frontLeftDrive.setInverted(false); //TODO: check if this is correct or flipped
+        frontRightDrive.setInverted(true);
+        backLeftDrive.setInverted(false);
+        backRightDrive.setInverted(true);
+
+        frontLeftDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        frontRightDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        backLeftDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+        backRightDrive.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+
+        drive = new MecanumDrive(frontLeftDrive, frontRightDrive, backLeftDrive, backRightDrive);
+
         motorCatapult.setDirection(DcMotorSimple.Direction.REVERSE);  
         rollerI.setDirection(DcMotorSimple.Direction.REVERSE);  
         rollerF.setDirection(DcMotorSimple.Direction.FORWARD);  
         
         stick.setPosition(STICKIN); // Defaults the stick flower mechanism to in. 
-        
+
+        imu = hardwareMap.get(IMU.class, "imu");
+        myIMUparameters = new IMU.Parameters(
+                new RevHubOrientationOnRobot(
+                        RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                )
+        );
+        imu.initialize(myIMUparameters);
+
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
@@ -163,27 +193,14 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
             double x = -gamepad1.left_stick_x;
             double rx = -gamepad1.right_stick_x;
             
-            /* Denominator is the largest motor power (absolute value) or 1
-            * This ensures all the powers maintain the same ratio, but only when
-            * at least one is out of the range [-1, 1]
-            */
-            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
-            
-            
-            if (drive == DriveStyle.SPLIT_ARCADE) { // split arcade drive
-                leftPower = (y + rx) / denominator;
-                rightPower = (y - rx) / denominator;
-            } else if (drive == DriveStyle.ARCADE) { // arcade drive
-                leftPower = (y + x) / denominator;
-                rightPower = (y - x) / denominator;
-            } else if (drive == DriveStyle.TANK) { // tank drive            
-                leftPower = gamepad1.left_stick_y;
-                rightPower = gamepad1.right_stick_y;
-            }
-            
-            // Send calculated power to wheels
-            leftDrive.setPower(leftPower);
-            rightDrive.setPower(rightPower);
+            robotOrientation = imu.getRobotYawPitchRollAngles();
+
+            // Now use these simple methods to extract each angle
+            // (Java type double) from the object you just created:
+            double heading = robotOrientation.getYaw(AngleUnit.DEGREES);
+            telemetry.addData("Heading", heading);
+
+            drive.driveFieldCentric(x, y, rx, heading);
             
             // Flower Stick control
             if (gamepad1.a) {
@@ -213,15 +230,6 @@ public class RobitsStarterBotTeleop extends LinearOpMode {
 
             // Show the elapsed game time.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
-            
-            // Telemetry data for drive type
-            if (drive == DriveStyle.SPLIT_ARCADE) {
-                telemetry.addData("Style","SplitArcade");   
-            } else if (drive == DriveStyle.ARCADE) {
-                telemetry.addData("Style","Arcade");   
-            } else if (drive == DriveStyle.TANK) {
-                telemetry.addData("Style","Tank");   
-            }
             
             // Telemetry data for catapult status
             if (motorCatapult.getPower() == WIND) {
